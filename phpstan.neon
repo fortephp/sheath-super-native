@@ -1,0 +1,13 @@
+parameters:
+    level: 10
+    paths:
+        - src
+        - tests
+    tmpDir: .phpstan.cache
+    excludePaths:
+        analyse:
+            - vendor
+            # These classes intentionally mimic application components,
+            # including APIs from multiple supported NativePHP releases.
+            - tests/Fixtures
+    treatPhpDocTypesAsCertain: false

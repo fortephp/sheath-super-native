@@ -1,0 +1,69 @@
+name: Report a bug
+description: Tell us about an incorrect diagnostic, missed error, or NativePHP integration problem.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the NativePHP plugin. A small native Blade
+        example and the diagnostic output help us investigate the problem quickly.
+
+  - type: textarea
+    id: blade
+    attributes:
+      label: Native Blade example
+      description: Share the smallest template that still shows the problem.
+      render: blade
+      placeholder: |
+        <native:view>
+            <native:text class="text-brand-missing">Hello</native:text>
+        </native:view>
+    validations:
+      required: true
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Tell us what you expected and what Sheath reported instead. Include the rule ID and message when available.
+      placeholder: |
+        Expected: no diagnostic for this supported native element.
+        Actual: native-unknown-element reported the element on line 2.
+    validations:
+      required: true
+
+  - type: textarea
+    id: component
+    attributes:
+      label: Relevant component code
+      description: Include the NativeComponent class when callbacks, model properties, keys, or registered elements are involved.
+      render: php
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant Sheath configuration
+      description: Include the preset order, native rule overrides, and nativeViewPaths options. Leave blank if you use the documented defaults.
+      render: php
+
+  - type: textarea
+    id: command-output
+    attributes:
+      label: Command and output
+      description: Share the lint command and complete diagnostic output, if available.
+      render: shell
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Share your PHP, Laravel, NativePHP Mobile, Sheath, and NativePHP plugin versions.
+      render: text
+      placeholder: |
+        PHP 8.4
+        Laravel 12
+        nativephp/mobile 4.2
+        fortephp/sheath 1.0
+        fortephp/sheath-super-native 1.0
+    validations:
+      required: true
