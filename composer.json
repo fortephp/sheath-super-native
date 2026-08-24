@@ -22,7 +22,7 @@
         "pestphp/pest": "^3",
         "laravel/pint": "^1.22",
         "phpstan/phpstan": "^2.1",
-        "nativephp/mobile": "^4.0",
+        "nativephp/mobile": "^4.2",
         "rector/rector": "^2.6"
     },
     "suggest": {

@@ -34,7 +34,7 @@ function compilerGateRuns(?Dependencies $dependencies): bool
 function lockedMobile(string $version): Dependencies
 {
     return Dependencies::fromData(
-        ['require' => ['nativephp/mobile' => '^4.0']],
+        ['require' => ['nativephp/mobile' => '^4.2']],
         ['packages' => [['name' => 'nativephp/mobile', 'version' => $version]]]
     );
 }
@@ -44,13 +44,15 @@ function constraintOnlyMobile(string $constraint): Dependencies
     return Dependencies::fromData(['require' => ['nativephp/mobile' => $constraint]]);
 }
 
-it('stands down on a provably pre-4 locked version', function (): void {
-    expect(compilerGateRuns(lockedMobile('v3.9.9')))->toBeFalse();
+it('stands down on provably pre-4.2 locked versions', function (): void {
+    expect(compilerGateRuns(lockedMobile('v3.9.9')))->toBeFalse()
+        ->and(compilerGateRuns(lockedMobile('v4.0.0')))->toBeFalse()
+        ->and(compilerGateRuns(lockedMobile('v4.1.0')))->toBeFalse();
 });
 
-it('runs on locked 4.x versions, pre-releases included', function (): void {
-    expect(compilerGateRuns(lockedMobile('v4.0.0')))->toBeTrue()
-        ->and(compilerGateRuns(lockedMobile('4.1.0-beta')))->toBeTrue();
+it('runs on locked 4.2 and newer 4.x versions, pre-releases included', function (): void {
+    expect(compilerGateRuns(lockedMobile('v4.2.0')))->toBeTrue()
+        ->and(compilerGateRuns(lockedMobile('4.3.0-beta')))->toBeTrue();
 });
 
 it('stands down on a future major whose premises are unverified', function (): void {
@@ -62,8 +64,8 @@ it('runs on dev branches', function (): void {
 });
 
 it('runs on lock-less constraint-only checkouts', function (): void {
-    expect(compilerGateRuns(constraintOnlyMobile('^4.0')))->toBeTrue()
-        ->and(compilerGateRuns(constraintOnlyMobile('~4.1')))->toBeTrue()
+    expect(compilerGateRuns(constraintOnlyMobile('^4.2')))->toBeTrue()
+        ->and(compilerGateRuns(constraintOnlyMobile('~4.2')))->toBeTrue()
         ->and(compilerGateRuns(constraintOnlyMobile('*')))->toBeTrue();
 });
 

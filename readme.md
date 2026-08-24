@@ -86,7 +86,7 @@ Native rules target `resources/views/native` by default and also recognize views
 
 - PHP 8.4 or newer
 - Laravel 12 or 13
-- NativePHP Mobile 4.x (SuperNative)
+- NativePHP Mobile 4.2 or newer within the 4.x series (SuperNative)
 - Sheath 1.x
 
 ## License

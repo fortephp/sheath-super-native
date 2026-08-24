@@ -80,7 +80,7 @@ abstract class BaseRule extends AbstractRule implements ProvidesRuleDocument, Sh
             return true;
         }
 
-        return $this->packageSatisfies($context, 'nativephp/mobile', '^4.0');
+        return $this->packageSatisfies($context, 'nativephp/mobile', '^4.2');
     }
 
     protected function appliesTo(Document $document, RuleContext $context): bool
