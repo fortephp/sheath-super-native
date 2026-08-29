@@ -68,14 +68,7 @@ class InvalidEnumValueRule extends BaseRule
 
             $effective = $this->compilerEffectiveAttributes(
                 $element,
-                function (Attribute $attribute) use ($tag): array {
-                    $name = $attribute->nameText();
-
-                    return ($name === 'axis' && $tag === 'scroll-view')
-                        || isset(self::ENUM_ATTRS[$name])
-                            ? [$name]
-                            : [];
-                },
+                fn (Attribute $attribute): array => $this->compilerKeysForValidatedAttribute($attribute, $tag),
             );
 
             if ($effective === null) {
@@ -136,5 +129,21 @@ class InvalidEnumValueRule extends BaseRule
                 }
             }
         });
+    }
+
+    /** @return list<string> */
+    private function compilerKeysForValidatedAttribute(Attribute $attribute, string $tag): array
+    {
+        $name = $attribute->nameText();
+
+        if (isset(self::ENUM_ATTRS[$name])) {
+            return [$name];
+        }
+
+        if ($name === 'axis' && $tag === 'scroll-view') {
+            return [$name];
+        }
+
+        return [];
     }
 }
