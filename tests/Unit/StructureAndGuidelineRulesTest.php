@@ -134,7 +134,7 @@ it('tracks the Android stack bottom-bar inset introduced in NativePHP 4.3', func
             ['packages' => [['name' => 'nativephp/mobile', 'version' => $version]]],
         );
         $config = Config::make()->setRule($rule->getId(), ['severity' => 'warning']);
-        $result = (new Linter($registry, $dependencies))->lint(
+        $result = new Linter($registry, $dependencies)->lint(
             $source,
             'resources/views/native/safe-area.blade.php',
             $config,
