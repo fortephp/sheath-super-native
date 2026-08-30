@@ -84,9 +84,7 @@ final class ElementEventCatalog
 
     public static function canonicalDirective(string $directive): string
     {
-        if (self::$aliases === null) {
-            self::$aliases = self::readAliases();
-        }
+        self::$aliases ??= self::readAliases();
 
         return self::$aliases[$directive] ?? $directive;
     }
