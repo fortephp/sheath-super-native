@@ -14,7 +14,9 @@ use Forte\Sheath\NativePhp\Rules\Guidelines\StyleAttributeRule;
 use Forte\Sheath\NativePhp\Rules\Interaction\CallbackRule;
 use Forte\Sheath\NativePhp\Rules\Interaction\KeyHygieneRule;
 use Forte\Sheath\NativePhp\Rules\Interaction\UnsupportedEventRule;
+use Forte\Sheath\NativePhp\Rules\Styling\DarkVariantTargetRule;
 use Forte\Sheath\NativePhp\Rules\Styling\DeadClassRule;
+use Forte\Sheath\NativePhp\Rules\Styling\MisrenderClassRule;
 use Forte\Sheath\Rules\RuleRegistry;
 
 it('lets unknown-attribute exclusively own dropped alignment spellings', function (string $attribute): void {
@@ -159,4 +161,32 @@ it('does not run class diagnostics on elements the renderer discards or rejects'
 })->with([
     ['<column><native:made-up class="grid-cols-3" /></column>', 'native-unknown-element'],
     ['<column><made-up class="grid-cols-3" /></column>', 'native-discarded-markup'],
+]);
+
+it('assigns reverse flex diagnostics to exactly one styling rule', function (string $class, string $owner): void {
+    $dead = new DeadClassRule;
+    $dark = new DarkVariantTargetRule;
+    $misrender = new MisrenderClassRule;
+    $registry = new RuleRegistry;
+    $registry->register($dead);
+    $registry->register($dark);
+    $registry->register($misrender);
+    $config = Config::make()
+        ->setRule($dead->getId(), 'warning')
+        ->setRule($dark->getId(), 'warning')
+        ->setRule($misrender->getId(), 'error');
+
+    $result = new Linter($registry)->lint(
+        "<column class=\"{$class}\"><text>x</text></column>",
+        'resources/views/native/ownership.blade.php',
+        $config,
+    );
+
+    expect($result->violations)->toHaveCount(1)
+        ->and($result->violations[0]->ruleId)->toBe($owner);
+})->with([
+    ['flex-row-reverse', 'native-misrender-class'],
+    ['ios:flex-col-reverse', 'native-misrender-class'],
+    ['dark:flex-row-reverse', 'native-dark-variant-target'],
+    ['hover:flex-row-reverse', 'native-dead-class'],
 ]);

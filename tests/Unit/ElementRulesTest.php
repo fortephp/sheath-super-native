@@ -44,6 +44,11 @@ it('follows installed enum parsing and the scroll axis exact-match contract', fu
     (new RuleTester)->run(new InvalidEnumValueRule, [
         'valid' => [
             '<column alignItems="middle" justifyContent="between"><text textAlign="leading">x</text></column>',
+            '<column flexDirection><text>x</text></column>',
+            '<column flexDirection=""><text>x</text></column>',
+            '<column flexDirection="row"><text>x</text></column>',
+            '<column flexDirection="1foo"><text>x</text></column>',
+            '<column flexDirection="2"><text>x</text></column>',
             '<column :justifyContent="$j" alignItems="{{ $a }}"><text>x</text></column>',
             '<column textAlign="justify"><text>x</text></column>',
             '<scroll-view axis="both"><text>x</text></scroll-view>',
@@ -52,6 +57,7 @@ it('follows installed enum parsing and the scroll axis exact-match contract', fu
         ],
         'invalid' => [
             ['code' => '<column alignItems="middle-ish"><text>x</text></column>', 'errors' => 1],
+            ['code' => '<column alignItems="0"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column justifyContent="stretch"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column><text textAlign="justify">x</text></column>', 'errors' => 1],
             ['code' => '<column alignItems><text>x</text></column>', 'errors' => 1],

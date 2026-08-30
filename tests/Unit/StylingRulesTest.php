@@ -12,6 +12,7 @@ use Forte\Sheath\NativePhp\Rules\Styling\MisrenderClassRule;
 use Forte\Sheath\NativePhp\Rules\Styling\PreferThemeTokensRule;
 use Forte\Sheath\NativePhp\Rules\Styling\TypographyTargetRule;
 use Forte\Sheath\Testing\RuleTester;
+use Native\Mobile\Edge\NativeElementCollector;
 
 beforeEach(function (): void {
     config()->set('native-ui.theme', [
@@ -28,6 +29,8 @@ it('delegates supported-class truth to the installed native parser', function ()
     (new RuleTester)->run(new DeadClassRule, [
         'valid' => [
             '<column class="w-full items-center gap-2 flex-1 flex-row safe-area"><text>x</text></column>',
+            '<column class="min-w-4 max-w-xs min-h-8 max-h-96"><text>x</text></column>',
+            '<column class="rounded-tl-2xl rounded-r-xl"><text>x</text></column>',
             '<column class="bg-theme-surface text-theme-on-surface bg-theme-primary/15"><text>x</text></column>',
             '<column class="ios:bg-cyan-300/30 android:dark:bg-white"><text>x</text></column>',
             '<column class="glass:interactive rounded-2xl"><text>x</text></column>',
@@ -37,12 +40,47 @@ it('delegates supported-class truth to the installed native parser', function ()
         ],
         'invalid' => [
             ['code' => '<column class="grid-cols-3"><text>x</text></column>', 'errors' => 1],
+            ['code' => '<column class="max-w-full"><text>x</text></column>', 'errors' => 1],
+            ['code' => '<column class="rounded-s-lg"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column class="hover:bg-red-500"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column class="felx-1"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column class="sm:px-4"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column @if($grid) class="grid-cols-3" @else class="p-4" @endif><text>x</text></column>', 'errors' => 1],
         ],
     ]);
+});
+
+it('reports reverse flex utilities that serialize as their forward direction', function (): void {
+    (new RuleTester)->run(new MisrenderClassRule, [
+        'valid' => [
+            '<column class="flex-row"><text>x</text></column>',
+            '<column class="flex-col"><text>x</text></column>',
+            '<column class="flex-row-reverse" class="flex-row"><text>x</text></column>',
+            '<column :class="$layoutClasses"><text>x</text></column>',
+            '<column class="hover:flex-row-reverse"><text>x</text></column>',
+            '<column class="dark:flex-row-reverse"><text>x</text></column>',
+        ],
+        'invalid' => [
+            ['code' => '<column class="flex-row-reverse"><text>x</text></column>', 'errors' => 1],
+            ['code' => '<column class="ios:flex-col-reverse"><text>x</text></column>', 'errors' => 1],
+            ['code' => '<column class="android:flex-row-reverse"><text>x</text></column>', 'errors' => 1],
+        ],
+    ]);
+});
+
+it('stands down on reverse flex utilities when raw classes are captured for custom handling', function (): void {
+    NativeElementCollector::captureAttribute('class', 'raw_class');
+
+    try {
+        (new RuleTester)->run(new MisrenderClassRule, [
+            'valid' => [
+                '<column class="flex-row-reverse"><text>x</text></column>',
+            ],
+            'invalid' => [],
+        ]);
+    } finally {
+        NativeElementCollector::stopCapturingAttributes();
+    }
 });
 
 it('reports accepted arbitrary values whose numeric meaning changes', function (): void {
@@ -74,6 +112,7 @@ it('reports dark payload keys the collector drops', function (): void {
         ],
         'invalid' => [
             ['code' => '<column class="dark:rounded-lg"><text>x</text></column>', 'errors' => 1],
+            ['code' => '<column class="dark:flex-row-reverse"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column class="dark:font-bold"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column class="dark:-mt-4"><text>x</text></column>', 'errors' => 1],
             ['code' => '<column class="ios:dark:bg-black ios:dark:rounded-lg"><text>x</text></column>', 'errors' => 1],

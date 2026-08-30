@@ -7,6 +7,7 @@ namespace Forte\Sheath\NativePhp\Rules\Styling;
 use Forte\Ast\Document\Document;
 use Forte\Sheath\Attributes\RequiresPackage;
 use Forte\Sheath\NativePhp\Rules\BaseRule;
+use Forte\Sheath\NativePhp\Support\ElementAttributeCatalog;
 use Forte\Sheath\NativePhp\Support\TailwindOracle;
 use Forte\Sheath\Results\Severity;
 use Forte\Sheath\Rules\RuleContext;
@@ -14,6 +15,12 @@ use Forte\Sheath\Rules\RuleContext;
 #[RequiresPackage('nativephp/mobile')]
 class MisrenderClassRule extends BaseRule
 {
+    /** @var array<string, string> reverse utility => forward utility */
+    private const array REVERSE_FLEX_DIRECTIONS = [
+        'flex-row-reverse' => 'flex-row',
+        'flex-col-reverse' => 'flex-col',
+    ];
+
     /**
      * @var array<string>
      */
@@ -38,7 +45,7 @@ class MisrenderClassRule extends BaseRule
 
     public function getDescription(): string
     {
-        return 'Reports arbitrary class values that NativePHP accepts but interprets incorrectly.';
+        return 'Reports class values that NativePHP accepts but interprets incorrectly.';
     }
 
     public function getDefaultSeverity(): Severity
@@ -72,6 +79,13 @@ class MisrenderClassRule extends BaseRule
         $bare = (string) preg_replace('/^(?:(?:ios|android|dark):)+/', '', $token);
         $negative = str_starts_with($bare, '-');
         $bare = ltrim($bare, '-');
+
+        $forward = self::REVERSE_FLEX_DIRECTIONS[$bare] ?? null;
+        if (! $hasDarkVariant
+            && $forward !== null
+            && $this->classesCompileToSameFlexDirection($bare, $forward)) {
+            return "'{$token}' is parsed exactly like '{$forward}'; NativePHP sends no reverse-order signal. Reverse the children explicitly.";
+        }
 
         if (preg_match('/^(.+?)-\[([^\]]+)\]$/', $bare, $m) !== 1) {
             if (preg_match('/^text-('.implode('|', self::FONT_SIZES).')\/\S+$/', $bare) === 1) {
@@ -132,6 +146,38 @@ class MisrenderClassRule extends BaseRule
         }
 
         return null;
+    }
+
+    private function classesCompileToSameFlexDirection(string $reverse, string $forward): bool
+    {
+        if (! TailwindOracle::available()) {
+            return false;
+        }
+
+        $capturedAttributes = ElementAttributeCatalog::capturedAttributes();
+        if (isset($capturedAttributes['class'])) {
+            return false;
+        }
+
+        foreach (['ios', 'android'] as $platform) {
+            $reverseResult = TailwindOracle::parseOn($platform, $reverse);
+            $forwardResult = TailwindOracle::parseOn($platform, $forward);
+
+            if ($reverseResult === null || $forwardResult === null) {
+                return false;
+            }
+
+            if ($reverseResult !== $forwardResult) {
+                return false;
+            }
+
+            $direction = $reverseResult['flexDirection'] ?? null;
+            if (! is_int($direction) && ! is_float($direction)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function isPointValue(string $value): bool
