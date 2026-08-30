@@ -76,18 +76,6 @@ class SafeAreaChromeRule extends BaseRule
             }
         });
 
-        if (isset($chromeByEdge['bottom'])) {
-            $chromeByEdge['bottom'] = array_values(array_filter(
-                $chromeByEdge['bottom'],
-                fn (ElementNode $chrome): bool => $this->nativeTagName($chrome) !== 'bottom-bar'
-                    || $this->bottomBarGetsNativeInset($chrome, $nativeChromeTriggers),
-            ));
-
-            if ($chromeByEdge['bottom'] === []) {
-                unset($chromeByEdge['bottom']);
-            }
-        }
-
         if ($chromeByEdge === []) {
             return;
         }
@@ -101,7 +89,14 @@ class SafeAreaChromeRule extends BaseRule
             }
 
             if (in_array($safeArea, self::SAFE_AREA_CLASSES, true)
-                && $this->conflictsWithChrome($element, $safeArea, $chromeByEdge)) {
+                && $this->conflictsWithChrome(
+                    $element,
+                    $safeArea,
+                    $platform,
+                    $chromeByEdge,
+                    $nativeChromeTriggers,
+                    $context,
+                )) {
                 $context->report(
                     $element,
                     "'{$token}' duplicates an inset already provided by native chrome"
@@ -116,15 +111,6 @@ class SafeAreaChromeRule extends BaseRule
         $parent = $this->renderedParentElement($element);
 
         return $parent === null || $this->renderedParentElement($parent) === null;
-    }
-
-    /** @param list<ElementNode> $nativeChromeTriggers */
-    private function bottomBarGetsNativeInset(ElementNode $bottomBar, array $nativeChromeTriggers): bool
-    {
-        return array_any(
-            $nativeChromeTriggers,
-            fn (ElementNode $trigger): bool => ! $this->nodesAreMutuallyExclusive($bottomBar, $trigger),
-        );
     }
 
     private function isCustomChrome(ElementNode $element): bool
@@ -173,15 +159,34 @@ class SafeAreaChromeRule extends BaseRule
         );
     }
 
-    /** @param array<string, list<ElementNode>> $chromeByEdge */
-    private function conflictsWithChrome(ElementNode $safeAreaElement, string $token, array $chromeByEdge): bool
-    {
+    /**
+     * @param  array<string, list<ElementNode>>  $chromeByEdge
+     * @param  list<ElementNode>  $nativeChromeTriggers
+     */
+    private function conflictsWithChrome(
+        ElementNode $safeAreaElement,
+        string $token,
+        ?string $platform,
+        array $chromeByEdge,
+        array $nativeChromeTriggers,
+        RuleContext $context,
+    ): bool {
         $edges = $token === 'safe-area'
             ? ['top', 'bottom']
             : ($token === 'safe-area-top' ? ['top'] : ['bottom']);
 
         foreach ($edges as $edge) {
             foreach ($chromeByEdge[$edge] ?? [] as $chrome) {
+                if ($this->nativeTagName($chrome) === 'bottom-bar'
+                    && ! $this->bottomBarGetsNativeInset(
+                        $chrome,
+                        $nativeChromeTriggers,
+                        $platform,
+                        $context,
+                    )) {
+                    continue;
+                }
+
                 if (! $this->nodesAreMutuallyExclusive($safeAreaElement, $chrome)) {
                     return true;
                 }
@@ -189,5 +194,46 @@ class SafeAreaChromeRule extends BaseRule
         }
 
         return false;
+    }
+
+    /** @param list<ElementNode> $nativeChromeTriggers */
+    private function bottomBarGetsNativeInset(
+        ElementNode $bottomBar,
+        array $nativeChromeTriggers,
+        ?string $platform,
+        RuleContext $context,
+    ): bool {
+        foreach ($nativeChromeTriggers as $trigger) {
+            if ($this->nodesAreMutuallyExclusive($bottomBar, $trigger)) {
+                continue;
+            }
+
+            $tag = $this->nativeTagName($trigger);
+            if ($tag === 'bottom-nav') {
+                return true;
+            }
+
+            if ($tag === 'top-bar'
+                && ($platform !== 'android' || $this->androidStackBottomBarGetsNativeInset($context))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function androidStackBottomBarGetsNativeInset(RuleContext $context): bool
+    {
+        $version = $this->getPackageVersion($context, 'nativephp/mobile');
+
+        // Constraint-only, missing, and dev installs do not prove the affected
+        // 4.2 renderer is in use. Preserve the current conservative diagnostic.
+        if ($version === null
+            || str_contains($version, 'dev')
+            || preg_match('/^v?\d+(\.\d+)*([-+][0-9A-Za-z.\-]+)?$/', $version) !== 1) {
+            return true;
+        }
+
+        return $this->packageVersionAtLeast($context, 'nativephp/mobile', '4.3.0');
     }
 }

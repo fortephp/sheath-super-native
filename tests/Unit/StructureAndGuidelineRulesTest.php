@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Forte\Sheath\NativePhp\Tests\Unit;
 
+use Forte\Sheath\Configuration\Config;
+use Forte\Sheath\Linter;
 use Forte\Sheath\NativePhp\Rules\Elements\StructureRule;
 use Forte\Sheath\NativePhp\Rules\Elements\UnknownAttributeRule;
 use Forte\Sheath\NativePhp\Rules\Guidelines\IconAccessibleLabelRule;
 use Forte\Sheath\NativePhp\Rules\Guidelines\NoEmojiRule;
 use Forte\Sheath\NativePhp\Rules\Guidelines\SafeAreaChromeRule;
 use Forte\Sheath\NativePhp\Rules\Interaction\KeyHygieneRule;
+use Forte\Sheath\Packages\Dependencies;
+use Forte\Sheath\Rules\RuleRegistry;
 use Forte\Sheath\Testing\RuleTester;
 
 it('requires stable identity on every compiler-visible loop path', function (): void {
@@ -117,6 +121,50 @@ it('reports only safe-area edges already owned by hoisted native chrome', functi
             ['code' => '<column class="safe-area-bottom"><top-bar title="Compose" /><native:bottom-bar><row><text>Composer</text></row></native:bottom-bar></column>', 'errors' => 1],
         ],
     ]);
+});
+
+it('tracks the Android stack bottom-bar inset introduced in NativePHP 4.3', function (): void {
+    $violationsFor = function (string $version, string $source): int {
+        $rule = new SafeAreaChromeRule;
+        $registry = new RuleRegistry;
+        $registry->register($rule);
+
+        $dependencies = Dependencies::fromData(
+            ['require' => ['nativephp/mobile' => '^4.2']],
+            ['packages' => [['name' => 'nativephp/mobile', 'version' => $version]]],
+        );
+        $config = Config::make()->setRule($rule->getId(), ['severity' => 'warning']);
+        $result = new Linter($registry, $dependencies)->lint(
+            $source,
+            'resources/views/native/safe-area.blade.php',
+            $config,
+        );
+
+        return count(array_filter(
+            $result->violations,
+            fn ($violation): bool => $violation->ruleId === $rule->getId(),
+        ));
+    };
+
+    $stack = fn (string $class): string => <<<BLADE
+        <column class="{$class}">
+            <top-bar title="Compose" />
+            <native:bottom-bar><row><text>Composer</text></row></native:bottom-bar>
+        </column>
+        BLADE;
+    $tabs = <<<'BLADE'
+        <column class="android:safe-area-bottom">
+            <bottom-nav><bottom-nav-item label="Home" /></bottom-nav>
+            <native:bottom-bar><row><text>Composer</text></row></native:bottom-bar>
+        </column>
+        BLADE;
+
+    expect($violationsFor('4.2.0', $stack('android:safe-area-bottom')))->toBe(0)
+        ->and($violationsFor('4.2.0', $stack('ios:safe-area-bottom')))->toBe(1)
+        ->and($violationsFor('4.2.0', $stack('safe-area-bottom')))->toBe(1)
+        ->and($violationsFor('4.2.0', $stack('android:safe-area')))->toBe(1)
+        ->and($violationsFor('4.2.0', $tabs))->toBe(1)
+        ->and($violationsFor('4.3.0', $stack('android:safe-area-bottom')))->toBe(1);
 });
 
 it('reports attributes no compiler or registered hydrator consumes', function (): void {
